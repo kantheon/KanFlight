@@ -74,26 +74,56 @@ def check_gowild(origin, destination, date):
         for journey in data.get("journeys", []):
             for flight in journey.get("flights", []):
                 if flight.get("isGoWildFareEnabled"):
-                    price = flight.get("discountDenFare", 0)
-                    fnum = flight.get("flightNumber", "")
-                    if not fnum:
-                        segs = flight.get("segments", [])
-                        fnum = segs[0].get("flightNumber", "") if segs else ""
-                    dep_date = flight.get("departureDateFormatted", "")
-                    dep_time = flight.get("departureTimeFormatted", "")
-                    arr_time = flight.get("arrivalTimeFormatted", "")
-                    duration = flight.get("durationFormatted", "")
-                    stops = flight.get("stops", 0)
+                    gw_price = flight.get("goWildFare", flight.get("discountDenFare", 0))
+                    duration = flight.get("duration", "")
+                    stops_text = flight.get("stopsText", "")
+
+                    # Extract flight number and times from legs
+                    legs = flight.get("legs", [])
+                    dep_time = ""
+                    arr_time = ""
+                    fnum = ""
+                    if legs:
+                        first_leg = legs[0]
+                        last_leg = legs[-1]
+                        dep_dt = first_leg.get("departureDate", "")
+                        arr_dt = last_leg.get("arrivalDate", "")
+                        fnum = first_leg.get("flightNumber", "")
+                        # Format times nicely
+                        if dep_dt:
+                            try:
+                                from datetime import datetime as _dt
+                                dep_time = _dt.fromisoformat(dep_dt).strftime("%-I:%M %p")
+                            except:
+                                dep_time = dep_dt
+                        if arr_dt:
+                            try:
+                                arr_time = _dt.fromisoformat(arr_dt).strftime("%-I:%M %p")
+                            except:
+                                arr_time = arr_dt
+
+                    # Fallback: parse from fareKey
+                    if not fnum or not dep_time:
+                        fare_key = flight.get("goWildFareKey", flight.get("baseFareKey", ""))
+                        if fare_key:
+                            import re as _re
+                            fk_match = _re.search(r'F9~(\d+)', fare_key)
+                            if fk_match and not fnum:
+                                fnum = fk_match.group(1)
+                            time_match = _re.search(r'(\d{2}/\d{2}/\d{4}\s+\d+:\d+)~\w+~(\d{2}/\d{2}/\d{4}\s+\d+:\d+)', fare_key)
+                            if time_match:
+                                if not dep_time: dep_time = time_match.group(1)
+                                if not arr_time: arr_time = time_match.group(2)
 
                     gowild_flights.append({
                         "origin": origin,
                         "destination": destination,
-                        "price": price,
-                        "dep_time": f"{dep_date} {dep_time}",
+                        "price": gw_price,
+                        "dep_time": dep_time,
                         "arr_time": arr_time,
                         "duration": duration,
                         "flight_number": f"F9 {fnum}",
-                        "stops": stops,
+                        "stops": stops_text,
                         "gowild": True,
                     })
 
