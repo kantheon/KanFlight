@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>KanFlight — Multi-Origin Flight Search</title>
+<meta name="description" content="Search flights from multiple airports. Check Frontier GoWild availability. No tracking.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✈</text></svg>">
+<style>
+:root{--bg:#06080f;--s1:#0d1117;--s2:#161b26;--s3:#1c2333;--border:#252d3d;--text:#eceff4;--sub:#8892a4;--dim:#5c6578;--cyan:#22d3ee;--purple:#a78bfa;--green:#34d399;--orange:#fb923c;--red:#f87171;--blue:#60a5fa;--r:14px}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'SF Pro','Segoe UI',sans-serif;overflow-x:hidden}
+.hdr{background:linear-gradient(160deg,#0c1220,#1a103a,#0c1220);padding:env(safe-area-inset-top,20px) 20px 20px;text-align:center;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.hdr h1{font-size:26px;font-weight:800;background:linear-gradient(135deg,var(--cyan),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hdr p{font-size:12px;color:var(--dim);margin-top:2px}
+.panel{max-width:520px;margin:0 auto;padding:16px}
+.section{margin-bottom:16px}
+.section-label{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--dim);font-weight:700;margin-bottom:8px;padding-left:4px}
+.input-wrap{position:relative}
+.input-wrap input{width:100%;background:var(--s2);border:1.5px solid var(--border);border-radius:12px;padding:14px 16px;color:var(--text);font-size:16px;outline:none;transition:border .2s}
+.input-wrap input:focus{border-color:var(--cyan)}
+.input-wrap input::placeholder{color:var(--dim)}
+.ac-drop{position:absolute;top:100%;left:0;right:0;background:var(--s2);border:1px solid var(--border);border-radius:12px;margin-top:4px;max-height:200px;overflow-y:auto;z-index:50;display:none}
+.ac-drop.show{display:block}
+.ac-item{padding:12px 16px;font-size:14px;cursor:pointer;display:flex;justify-content:space-between;border-bottom:1px solid var(--border)}
+.ac-item:last-child{border:none}
+.ac-item:hover,.ac-item:active{background:var(--s3)}
+.ac-item .code{font-weight:700;color:var(--cyan);font-size:15px}
+.ac-item .name{color:var(--sub);font-size:13px;text-align:right;max-width:60%}
+.tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.tag{background:rgba(34,211,238,0.08);border:1px solid rgba(34,211,238,0.25);color:var(--cyan);padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px;animation:tagIn .2s ease}
+.tag.purple{background:rgba(167,139,250,0.08);border-color:rgba(167,139,250,0.25);color:var(--purple)}
+.tag .x{width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer}
+@keyframes tagIn{from{transform:scale(0.8);opacity:0}to{transform:scale(1);opacity:1}}
+.filter-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.filter-grid select,.filter-grid input[type=date]{width:100%;background:var(--s2);border:1.5px solid var(--border);border-radius:12px;padding:14px 12px;color:var(--text);font-size:15px;outline:none;-webkit-appearance:none;appearance:none}
+.filter-grid select{background-image:url("data:image/svg+xml,%3Csvg width='10' height='6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0l5 6 5-6' fill='%235c6578'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center}
+input[type=date]::-webkit-calendar-picker-indicator{filter:invert(0.6)}
+.btn-row{display:flex;gap:10px;margin-top:8px}
+.search-btn{flex:1;background:linear-gradient(135deg,var(--cyan),var(--purple));color:#000;border:none;border-radius:14px;padding:16px;font-size:15px;font-weight:800;cursor:pointer;transition:transform .1s,opacity .15s}
+.search-btn.gw{background:linear-gradient(135deg,var(--green),var(--cyan))}
+.search-btn:active{transform:scale(0.98)}
+.search-btn:disabled{opacity:0.4}
+.results{max-width:520px;margin:0 auto;padding:0 16px 100px}
+.res-bar{display:flex;justify-content:space-between;align-items:center;padding:16px 4px 12px}
+.res-count{font-size:13px;color:var(--sub)}
+.fcard{background:var(--s2);border:1.5px solid var(--border);border-radius:16px;padding:16px;margin-bottom:12px;transition:border-color .15s}
+.fcard:active{border-color:var(--cyan)}
+.fcard.gw{border-color:rgba(16,185,129,0.3)}
+.fcard-top{display:flex;justify-content:space-between;align-items:flex-start}
+.fcard-price{font-size:32px;font-weight:800;color:var(--green);line-height:1}
+.fcard-origin{font-size:10px;font-weight:700;color:var(--purple);background:rgba(167,139,250,0.12);padding:3px 10px;border-radius:10px;margin-top:4px;display:inline-block;letter-spacing:0.5px}
+.fcard-route{flex:1;padding-right:16px}
+.fcard-airline{font-size:14px;font-weight:600;margin-bottom:2px}
+.fcard-fnum{font-size:11px;color:var(--dim);margin-bottom:8px}
+.fcard-times{display:flex;align-items:center;gap:8px}
+.fcard-t{font-size:20px;font-weight:700;letter-spacing:-0.5px}
+.fcard-mid{flex:1;display:flex;flex-direction:column;align-items:center}
+.fcard-dur{font-size:11px;color:var(--sub);font-weight:600}
+.fcard-line{width:100%;height:2px;background:var(--border);border-radius:1px;margin:4px 0;position:relative}
+.fcard-line::after{content:'';position:absolute;right:-3px;top:-2px;width:6px;height:6px;border-radius:50%;background:var(--cyan)}
+.fcard-stops{font-size:11px;font-weight:600}
+.fcard-stops.ns{color:var(--green)}
+.fcard-stops.s{color:var(--orange)}
+.fcard-legs{margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+.fcard-leg{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);padding:2px 0}
+.gw-badge{display:inline-block;background:linear-gradient(135deg,#10b981,#06b6d4);color:#000;font-size:10px;font-weight:800;padding:3px 10px;border-radius:8px;letter-spacing:0.5px;margin-bottom:6px}
+.loading{text-align:center;padding:60px 20px}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--cyan);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading p{color:var(--dim);font-size:14px}
+.empty{text-align:center;padding:80px 20px;color:var(--dim);font-size:14px}
+@media(max-width:600px){.filter-grid{grid-template-columns:1fr 1fr}.btn-row{flex-direction:column}}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <h1>KanFlight</h1>
+  <p>Multi-origin flight search + Frontier GoWild</p>
+</div>
+<div class="panel">
+  <div class="section">
+    <div class="section-label">From</div>
+    <div class="input-wrap">
+      <input id="from-input" placeholder="Search airports..." autocomplete="off" oninput="acFrom(this.value)" onfocus="acFrom(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();pickFirst('from-drop','origin')}">
+      <div class="ac-drop" id="from-drop"></div>
+    </div>
+    <div class="tags" id="from-tags"></div>
+  </div>
+  <div class="section">
+    <div class="section-label">To</div>
+    <div class="input-wrap">
+      <input id="to-input" placeholder="Search destination..." autocomplete="off" oninput="acTo(this.value)" onfocus="acTo(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();pickFirst('to-drop','dest')}">
+      <div class="ac-drop" id="to-drop"></div>
+    </div>
+    <div id="to-selected" style="margin-top:6px"></div>
+  </div>
+  <div class="section">
+    <div class="section-label">Date & Preferences</div>
+    <div class="filter-grid">
+      <input type="date" id="date">
+      <select id="stops"><option value="any">Any stops</option><option value="nonstop">Nonstop only</option><option value="1stop">1 stop max</option></select>
+      <select id="seat"><option value="economy">Economy</option><option value="premium">Premium</option><option value="business">Business</option><option value="first">First</option></select>
+      <select id="sort"><option value="cheapest">Cheapest</option><option value="fastest">Shortest</option><option value="best">Best overall</option></select>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-label">Airlines (optional)</div>
+    <div class="input-wrap">
+      <input id="al-input" placeholder="Search airlines..." autocomplete="off" oninput="acAl(this.value)" onfocus="acAl(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();pickFirst('al-drop','airline')}">
+      <div class="ac-drop" id="al-drop"></div>
+    </div>
+    <div class="tags" id="al-tags"></div>
+  </div>
+  <div class="btn-row">
+    <button class="search-btn" id="sbtn" onclick="doSearch()">Search Flights</button>
+    <button class="search-btn gw" id="gwbtn" onclick="doGoWild()">GoWild</button>
+  </div>
+</div>
+<div class="results" id="results">
+  <div class="empty">Select origins, destination, and date to search.</div>
+</div>
+<script>
+let airports={},airlines={};
+const origins=new Set();let dest='';const selAirlines=new Set();
+
+// Load data
+Promise.all([
+  fetch('/airports.json').then(r=>r.json()),
+  fetch('/airlines.json').then(r=>r.json()),
+]).then(([ap,al])=>{airports=ap;airlines=al});
+
+const dd=new Date();dd.setDate(dd.getDate()+1);
+document.getElementById('date').value=dd.toISOString().split('T')[0];
+
+function pickFirst(dropId){
+  const first=document.getElementById(dropId).querySelector('.ac-item');
+  if(first)first.dispatchEvent(new Event('mousedown'));
+}
+function acSearch(src,q){
+  if(!q||q.length<1)return[];
+  const qu=q.toUpperCase();
+  return Object.keys(src).filter(k=>k.startsWith(qu)||src[k].toUpperCase().includes(qu)).slice(0,8);
+}
+function acFrom(q){
+  const drop=document.getElementById('from-drop');
+  const m=acSearch(airports,q);if(!m.length){drop.classList.remove('show');return}
+  drop.innerHTML=m.map(k=>`<div class="ac-item" onmousedown="addOrigin('${k}')"><span class="code">${k}</span><span class="name">${airports[k]}</span></div>`).join('');
+  drop.classList.add('show');
+}
+function acTo(q){
+  const drop=document.getElementById('to-drop');
+  const m=acSearch(airports,q);if(!m.length){drop.classList.remove('show');return}
+  drop.innerHTML=m.map(k=>`<div class="ac-item" onmousedown="setDest('${k}')"><span class="code">${k}</span><span class="name">${airports[k]}</span></div>`).join('');
+  drop.classList.add('show');
+}
+function acAl(q){
+  const drop=document.getElementById('al-drop');
+  const m=acSearch(airlines,q);if(!m.length){drop.classList.remove('show');return}
+  drop.innerHTML=m.map(k=>`<div class="ac-item" onmousedown="addAirline('${k}')"><span class="code">${k}</span><span class="name">${airlines[k]}</span></div>`).join('');
+  drop.classList.add('show');
+}
+['from-input','to-input','al-input'].forEach(id=>{
+  document.getElementById(id).addEventListener('blur',()=>{
+    const dropId=id==='from-input'?'from-drop':id==='to-input'?'to-drop':'al-drop';
+    setTimeout(()=>document.getElementById(dropId).classList.remove('show'),150);
+  });
+});
+function addOrigin(c){origins.add(c);document.getElementById('from-input').value='';document.getElementById('from-drop').classList.remove('show');renderOrigins()}
+function removeOrigin(c){origins.delete(c);renderOrigins()}
+function renderOrigins(){document.getElementById('from-tags').innerHTML=[...origins].map(c=>`<div class="tag">${c}<div class="x" onclick="removeOrigin('${c}')">&times;</div></div>`).join('')}
+function setDest(c){dest=c;document.getElementById('to-input').value='';document.getElementById('to-drop').classList.remove('show');document.getElementById('to-selected').innerHTML=`<div class="tag">${c} &mdash; ${airports[c]||''}<div class="x" onclick="clearDest()">&times;</div></div>`}
+function clearDest(){dest='';document.getElementById('to-selected').innerHTML=''}
+function addAirline(c){selAirlines.add(airlines[c]);document.getElementById('al-input').value='';document.getElementById('al-drop').classList.remove('show');renderAirlines()}
+function removeAirline(n){selAirlines.delete(n);renderAirlines()}
+function renderAirlines(){document.getElementById('al-tags').innerHTML=[...selAirlines].map(a=>`<div class="tag purple">${a}<div class="x" onclick="removeAirline('${a}')">&times;</div></div>`).join('')}
+
+async function doSearch(){
+  if(!origins.size||!dest)return;
+  const date=document.getElementById('date').value;if(!date)return;
+  const btn=document.getElementById('sbtn');btn.disabled=true;btn.textContent='Searching...';
+  document.getElementById('results').innerHTML=`<div class="loading"><div class="spinner"></div><p>Searching ${origins.size} airport(s)...</p></div>`;
+  try{
+    const r=await fetch('/api/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({origins:[...origins],destination:dest,date,stops:document.getElementById('stops').value,seat:document.getElementById('seat').value,sort:document.getElementById('sort').value})});
+    let flights=await r.json();
+    if(selAirlines.size>0)flights=flights.filter(f=>(f.legs||[]).some(l=>selAirlines.has(l.airline)));
+    renderFlights(flights);
+  }catch(e){document.getElementById('results').innerHTML=`<div class="empty">Search failed.</div>`}
+  btn.disabled=false;btn.textContent='Search Flights';
+}
+
+async function doGoWild(){
+  if(!origins.size||!dest)return;
+  const date=document.getElementById('date').value;if(!date)return;
+  const btn=document.getElementById('gwbtn');btn.disabled=true;btn.textContent='Checking...';
+  document.getElementById('results').innerHTML=`<div class="loading"><div class="spinner"></div><p>Checking Frontier GoWild...</p></div>`;
+  try{
+    const r=await fetch('/api/gowild',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({origins:[...origins],destination:dest,date})});
+    const flights=await r.json();
+    if(!flights.length){document.getElementById('results').innerHTML=`<div class="empty">No GoWild flights found for this route/date.</div>`;
+    }else{renderGoWild(flights)}
+  }catch(e){document.getElementById('results').innerHTML=`<div class="empty">GoWild check failed.</div>`}
+  btn.disabled=false;btn.textContent='GoWild';
+}
+
+function renderFlights(flights){
+  const el=document.getElementById('results');
+  if(!flights.length){el.innerHTML='<div class="empty">No flights found.</div>';return}
+  let h=`<div class="res-bar"><div class="res-count">${flights.length} flights</div></div>`;
+  flights.forEach(f=>{
+    const legs=f.legs||[];const first=legs[0]||{};const last=legs[legs.length-1]||first;
+    const depT=first.dep_time?new Date(first.dep_time).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):'--';
+    const arrT=last.arr_time?new Date(last.arr_time).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):'--';
+    const hrs=Math.floor((f.duration||0)/60);const mins=(f.duration||0)%60;
+    const stopT=f.stops===0?'Nonstop':f.stops+' stop'+(f.stops>1?'s':'');
+    const airlines=[...new Set(legs.map(l=>l.airline))].join(', ');
+    const fnums=legs.map(l=>l.flight_number).filter(Boolean).join(' → ');
+    h+=`<div class="fcard"><div class="fcard-top"><div class="fcard-route"><div class="fcard-airline">${airlines}</div><div class="fcard-fnum">${fnums}</div><div class="fcard-times"><div class="fcard-t">${depT}</div><div class="fcard-mid"><div class="fcard-dur">${hrs}h ${mins}m</div><div class="fcard-line"></div><div class="fcard-stops ${f.stops===0?'ns':'s'}">${stopT}</div></div><div class="fcard-t">${arrT}</div></div></div><div style="text-align:right"><div class="fcard-price">$${f.price||'--'}</div><div class="fcard-origin">${f.origin}</div></div></div>${legs.length>1?'<div class="fcard-legs">'+legs.map(l=>`<div class="fcard-leg"><span>${l.airline} ${l.flight_number}</span><span>${l.dep_airport} → ${l.arr_airport}</span></div>`).join('')+'</div>':''}</div>`;
+  });
+  el.innerHTML=h;
+}
+
+function renderGoWild(flights){
+  let h=`<div class="res-bar"><div class="res-count">${flights.length} GoWild flights</div></div>`;
+  flights.forEach(f=>{
+    h+=`<div class="fcard gw"><div class="gw-badge">GOWILD</div><div class="fcard-top"><div class="fcard-route"><div class="fcard-airline">Frontier Airlines</div><div class="fcard-fnum">${f.flight_number||''}</div><div class="fcard-times"><div class="fcard-t">${f.dep_time||'--'}</div><div class="fcard-mid"><div class="fcard-dur">${f.duration||''}</div><div class="fcard-line" style="background:var(--green)"></div><div class="fcard-stops ns">${f.stops?f.stops+' stop':'Nonstop'}</div></div><div class="fcard-t">${f.arr_time||'--'}</div></div></div><div style="text-align:right"><div class="fcard-price">${f.price?'$'+f.price:'FREE'}</div><div class="fcard-origin">${f.origin}</div></div></div></div>`;
+  });
+  document.getElementById('results').innerHTML=h;
+}
+</script>
+</body>
+</html>

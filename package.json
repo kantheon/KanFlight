@@ -1,0 +1,8 @@
+{
+  "name": "kanflight",
+  "version": "1.0.0",
+  "description": "Flight search with GoWild checking. Multiple origins.",
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
+}
