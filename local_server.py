@@ -595,7 +595,7 @@ class Handler(SimpleHTTPRequestHandler):
         self.wfile.write(HTML.encode())
 
     def do_POST(self):
-        if self.path == '/search':
+        if self.path in ('/search', '/api/search'):
             try:
                 length = int(self.headers.get('Content-Length', 0))
                 body = json.loads(self.rfile.read(length))
@@ -618,16 +618,26 @@ class Handler(SimpleHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(json.dumps({"error": str(e)}).encode())
 
-        if self.path == '/gowild':
+        if self.path in ('/gowild', '/api/gowild'):
             try:
                 length = int(self.headers.get('Content-Length', 0))
                 body = json.loads(self.rfile.read(length))
-                origin = body.get('origin', '')
+                # Support both single origin and multiple origins
+                origins = body.get('origins', [])
+                if not origins:
+                    origin = body.get('origin', '')
+                    if origin: origins = [origin]
                 dest = body.get('destination', '')
                 date = body.get('date', '')
-                print(f"GoWild check: {origin} → {dest} on {date}")
-                flights = check_gowild(origin, dest, date)
-                print(f"  Found {len(flights)} GoWild flights")
+                flights = []
+                for o in origins:
+                    print(f"GoWild check: {o} → {dest} on {date}")
+                    result = check_gowild(o, dest, date)
+                    flights.extend(result)
+                    if len(origins) > 1:
+                        import time as _t; _t.sleep(2)
+                flights.sort(key=lambda x: x.get("price", 999))
+                print(f"  Found {len(flights)} GoWild flights total")
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
                 self.send_header('Connection', 'close')
